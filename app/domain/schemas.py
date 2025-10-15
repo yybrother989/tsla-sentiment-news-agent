@@ -155,7 +155,10 @@ class SupabaseRecord(BaseModel):
     user_id: int = Field(default=1)
 
 
-class ArticleRecord(SupabaseRecord):
+class SentimentAnalysisRecord(SupabaseRecord):
+    """Unified record combining article content and sentiment analysis."""
+    
+    # Article fields
     ticker: str
     url: str
     title: str
@@ -163,21 +166,32 @@ class ArticleRecord(SupabaseRecord):
     source: str
     published_at: datetime
     canonical_hash: str
+    
+    # Classification fields (optional until classified)
+    category: Optional[str] = None
+    classification_confidence: Optional[float] = None
+    classification_rationale: Optional[str] = None
+    
+    # Enhanced sentiment analysis fields (optional until analysis is performed)
+    sentiment_score: Optional[float] = None  # -1.0 to +1.0
+    impact_score: Optional[int] = None  # 1-5
+    sentiment_confidence: Optional[float] = None  # 0.0 to 1.0
+    sentiment_rationale: Optional[str] = None
+    key_factors: Optional[str] = None  # Comma-separated key factors
+    
+    # Legacy sentiment fields (for backward compatibility)
+    sentiment: Optional[float] = None
+    stance: Optional[str] = None
+    event_type: Optional[str] = None
+    summary: Optional[str] = None
+    impact: Optional[int] = None
+    impact_rationale: Optional[str] = None
 
 
-class EventRecord(SupabaseRecord):
-    article_url: str
-    about_ticker: bool
-    sentiment: float
-    stance: str
-    event_type: Optional[str]
-    summary: str
-
-
-class ScoreRecord(SupabaseRecord):
-    article_url: str
-    score: int
-    rationale: str
+# Legacy aliases for backward compatibility
+ArticleRecord = SentimentAnalysisRecord
+EventRecord = SentimentAnalysisRecord
+ScoreRecord = SentimentAnalysisRecord
 
 
 class LLMError(BaseModel):
@@ -206,6 +220,7 @@ __all__ = [
     "ScoreRecord",
     "ScoringRequest",
     "ScoringResponse",
+    "SentimentAnalysisRecord",
     "SupabaseRecord",
     "canonical_hash",
 ]

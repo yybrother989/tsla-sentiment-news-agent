@@ -52,6 +52,12 @@ extracted_content_*.md
 results.md
 /tmp/browser-use-downloads-*/
 
+# Generated Reports and Outputs
+reports/
+!reports/.gitkeep
+email_previews/
+!email_previews/.gitkeep
+
 # Logs
 *.log
 logs/

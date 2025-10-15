@@ -57,6 +57,14 @@ class AppSettings(BaseSettings):
 
     fear_greed_history: int = Field(default=5)
 
+    # Email configuration
+    smtp_host: Optional[str] = Field(default="smtp.gmail.com", validation_alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, validation_alias="SMTP_PORT")
+    smtp_user: Optional[str] = Field(default=None, validation_alias="SMTP_USER")
+    smtp_password: Optional[str] = Field(default=None, validation_alias="SMTP_PASSWORD")
+    sender_email: Optional[str] = Field(default=None, validation_alias="SENDER_EMAIL")
+    recipient_emails: Optional[str] = Field(default=None, validation_alias="RECIPIENT_EMAILS")  # Comma-separated
+
     @property
     def manus_headers(self) -> Dict[str, str]:
         if not self.manus_api_key:

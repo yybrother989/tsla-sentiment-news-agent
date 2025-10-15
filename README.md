@@ -58,12 +58,21 @@ APP_LOG_LEVEL=INFO
 
 ### 4. Run the Agent
 
+### Fetch News
 ```bash
-python -m app.cli.run_once TSLA
+# Fetch Tesla news from all sources (past 7 days)
+python -m app.cli.fetch_news --days 7
 ```
 
-With optional parameters:
+### Generate Report
 ```bash
+# Generate weekly sentiment report
+python -m app.cli.generate_report
+```
+
+### Run Full Pipeline
+```bash
+# Complete analysis pipeline
 python -m app.cli.run_once TSLA --window-hours 12 --max-docs 10
 ```
 
