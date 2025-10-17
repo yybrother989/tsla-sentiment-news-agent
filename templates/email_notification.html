@@ -148,6 +148,36 @@
                         </td>
                     </tr>
                     
+                    <!-- Reddit Community Buzz -->
+                    {% if top_reddit_posts %}
+                    <tr>
+                        <td style="padding: 0 30px 30px 30px;">
+                            <h2 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 20px; border-bottom: 2px solid #ff6b6b; padding-bottom: 10px;">
+                                🔥 Top Reddit Posts (This Week)
+                            </h2>
+                            {% for post in top_reddit_posts %}
+                            <div style="background: #fff8e1; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid #ff9800;">
+                                <div style="margin-bottom: 10px;">
+                                    <a href="{{ post.post_url }}" style="color: #e74c3c; text-decoration: none; font-size: 18px; font-weight: bold;">
+                                        {{ loop.index }}. {{ post.title }}
+                                    </a>
+                                </div>
+                                <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
+                                    <span style="margin-right: 15px;">👤 u/{{ post.author_username or 'Unknown' }}</span>
+                                    <span style="margin-right: 15px;">⬆️ {{ post.upvote_count or 0 }} upvotes</span>
+                                    <span>💬 {{ post.comment_count or 0 }} comments</span>
+                                </div>
+                                {% if post.text %}
+                                <div style="color: #555; line-height: 1.5; font-size: 14px; margin-top: 10px;">
+                                    {{ post.text[:200] }}{% if post.text|length > 200 %}...{% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    
                     <!-- Action Items -->
                     <tr>
                         <td style="padding: 0 30px 30px 30px;">

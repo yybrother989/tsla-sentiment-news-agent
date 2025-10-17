@@ -41,6 +41,9 @@ class AppSettings(BaseSettings):
     )
     browser_use_timeout_seconds: int = Field(default=45)
 
+    twitter_username: Optional[str] = Field(default=None, validation_alias="TWITTER_USERNAME")
+    twitter_password: Optional[str] = Field(default=None, validation_alias="TWITTER_PASSWORD")
+
     planner_timeout_minutes: int = Field(default=8)
     planner_max_documents: int = Field(default=60)
     planner_include_social: bool = Field(default=True)

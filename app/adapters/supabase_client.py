@@ -30,12 +30,18 @@ class SupabaseAdapter:
         if not payload:
             return
         
-        # All tables now use url as the unique constraint
-        response = self.client.table(table).upsert(payload, on_conflict="url").execute()
+        # Determine unique constraint column based on table
+        conflict_column = {
+            "sentiment_analysis": "url",
+            "twitter_sentiment": "url",
+            "reddit_sentiment": "post_url",  # Reddit uses post_url instead of url
+        }.get(table, "url")  # Default to "url" for other tables
+        
+        response = self.client.table(table).upsert(payload, on_conflict=conflict_column).execute()
         
         if getattr(response, "error", None):
             raise SupabaseClientError(response.error.message)
-        self.logger.debug("Upserted %d records into %s", len(payload), table)
+        self.logger.debug("Upserted %d records into %s (conflict: %s)", len(payload), table, conflict_column)
 
 
 __all__ = ["SupabaseAdapter", "SupabaseClientError"]

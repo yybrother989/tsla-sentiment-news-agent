@@ -1,135 +1,209 @@
-# Tesla Stock Sentiment & News Analysis Agent
+# Tesla Sentiment News Agent 🚗📰
 
-An AI-powered system that automatically collects, analyzes, and scores Tesla (TSLA) stock news and sentiment using Browser-Use automation, LLM reasoning, and Supabase persistence.
+An AI-powered sentiment analysis system that monitors Tesla (TSLA) news, Twitter discussions, and Reddit communities to generate comprehensive daily email reports for investors.
 
-> **⚠️ Note**: This is currently a **framework implementation**. The news sentiment evaluation is still in progress. The current version demonstrates the complete pipeline architecture with placeholder reasoning and scoring logic. Real LLM-based sentiment analysis and advanced features will be added in future iterations.
+## 🌟 Features
 
-## Prerequisites
+- **📰 Automated News Collection**: Fetches Tesla news from DuckDuckGo with time-based filtering
+- **🐦 Twitter Monitoring**: Collects tweets about Tesla using Browser-Use AI agent (with authentication)
+- **📊 Reddit Tracking**: Monitors r/wallstreetbets for top Tesla discussions
+- **🤖 AI-Powered Sentiment Analysis**: Uses GPT-4o to analyze sentiment and market impact
+- **📧 Smart Email Reports**: Generates professional HTML email summaries with AI insights
+- **💾 Database Storage**: Stores all data in Supabase with structured schemas
+- **🔄 Session Caching**: Persistent browser sessions for efficient data collection
 
-- Python 3.11+
-- Google Chrome installed
-- OpenAI API key
-- Supabase account and project
+## 🏗️ Architecture
 
-## Setup Instructions
+```
+app/
+├── adapters/          # External integrations (news, Twitter, Reddit, Supabase)
+├── cli/               # Command-line interfaces for each workflow
+├── domain/            # Core business logic and data schemas
+├── infra/             # Configuration, logging, telemetry
+├── services/          # Business services (sentiment analysis, email generation)
+└── pipelines/         # Data processing workflows (empty, for future use)
 
-### 1. Clone and Install Dependencies
-
-```bash
-git clone <your-repo-url>
-cd tsla_sentiment_news_agent
-python3.11 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -e .
+migrations/            # SQL database schema migrations
+templates/             # HTML/Markdown email templates
+docs/                  # Documentation files
+tests/                 # Unit and integration tests
 ```
 
-### 2. Configure Environment Variables
+## 🚀 Quick Start
 
-Copy the example environment file:
+### Prerequisites
 
+- Python 3.11+ (3.12 recommended)
+- Chrome browser installed
+- OpenAI API key
+- Supabase account (for database)
+- Gmail account (for sending emails)
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/yourusername/tsla_sentiment_news_agent.git
+cd tsla_sentiment_news_agent
+```
+
+2. **Set up Python environment**
+```bash
+# Using uv (recommended)
+uv venv --python 3.12
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+uv pip install -e .
+uvx playwright install chromium --with-deps
+
+# Or using pip
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+playwright install chromium --with-deps
+```
+
+3. **Configure environment variables**
 ```bash
 cp env.example .env
+# Edit .env with your API keys and credentials
 ```
 
-Edit `.env` and add your credentials:
+Required environment variables:
+- `OPENAI_API_KEY` - OpenAI API key for GPT-4o
+- `SUPABASE_URL` - Supabase project URL
+- `SUPABASE_KEY` - Supabase service role key
+- `SMTP_USER` / `SMTP_PASSWORD` - Gmail credentials
+- `RECIPIENT_EMAILS` - Email recipient(s)
+
+4. **Set up database**
+```bash
+# Run migrations in your Supabase SQL editor
+cat migrations/*.sql
+```
+
+## 📖 Usage
+
+### 1. Fetch Tesla News
+```bash
+python -m app.cli.fetch_news --days 1 --limit 10
+```
+
+### 2. Collect Reddit Posts
+```bash
+# First run (collects top 5 posts from r/wallstreetbets)
+python -m app.cli.reddit_sentiment reddit-sentiment --subreddit wallstreetbets --target 5
+```
+
+### 3. Collect Twitter/X Posts (Requires Login)
+```bash
+# Step 1: Set up Twitter session (one-time)
+python -m app.cli.twitter_sentiment twitter-login-simple
+
+# Step 2: Collect tweets
+python -m app.cli.twitter_sentiment twitter-sentiment --query "TSLA OR Tesla" --target 10
+```
+
+### 4. Send Email Report
+```bash
+# Sends report with news from past 24 hours + top Reddit posts from past week
+python -m app.cli.send_email --days 1
+
+# Send to specific recipient
+python -m app.cli.send_email --days 1 --recipient user@example.com
+
+# Preview without sending
+python -m app.cli.send_email --days 1 --generate-only
+```
+
+### 5. Complete Workflow
+```bash
+# Run all steps in sequence
+./run_full_workflow.sh
+```
+
+## 🛠️ Key Technologies
+
+- **[Browser-Use](https://github.com/browser-use/browser-use)** - AI-powered browser automation with GPT-4o
+- **OpenAI GPT-4o** - LLM for sentiment analysis and content generation
+- **Supabase** - PostgreSQL database for data storage
+- **Playwright** - Browser automation runtime
+- **Jinja2** - HTML email templating
+- **Typer** - CLI framework
+- **Pydantic** - Data validation and schemas
+
+## 📊 Database Schema
+
+### `sentiment_analysis` (News Articles)
+- Article metadata (title, URL, published date)
+- Sentiment scores and labels
+- Category classification
+- Impact ratings
+
+### `twitter_sentiment` (Twitter/X Posts)
+- Tweet content and metadata
+- Engagement metrics
+- Author information
+- Sentiment analysis results
+
+### `reddit_sentiment` (Reddit Posts)
+- Post title, URL, and subreddit
+- Upvote and comment counts
+- Author username
+- Post timestamp
+
+## 🔧 Configuration
+
+Key settings in `app/infra/config.py`:
+- `planner_llm_model`: LLM model for sentiment analysis (default: gpt-4o-mini)
+- `planner_max_documents`: Maximum articles to process
+- `user_id`: User ID for multi-tenant support (default: 1)
+
+## 📚 Documentation
+
+Comprehensive documentation available in the `docs/` folder:
+- [CLI Usage Guide](docs/CLI_USAGE.md)
+- [Email Setup Guide](docs/EMAIL_SETUP_GUIDE.md)
+- [Report Generation Guide](docs/REPORT_GENERATION_GUIDE.md)
+- [Browser-Use Patterns](docs/BROWSER_USE_PATTERNS.md)
+- [Project Structure](docs/PROJECT_STRUCTURE.md)
+- [Migration Guide](docs/MIGRATION_GUIDE.md)
+
+## 🧪 Testing
 
 ```bash
-# Required
-OPENAI_API_KEY=sk-proj-your-key-here
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+# Run unit tests
+pytest tests/
 
-# Optional
-PLANNER_LLM_MODEL=gpt-4o-mini
-APP_USER_ID=1
-APP_LOG_LEVEL=INFO
+# Run specific test
+pytest tests/test_news_sources.py
+
+# Run with coverage
+pytest --cov=app tests/
 ```
 
-### 3. Setup Supabase Database
+## 🤝 Contributing
 
-1. Go to your [Supabase Dashboard](https://supabase.com/dashboard)
-2. Select your project (or create a new one)
-3. Navigate to **SQL Editor** in the left sidebar
-4. Click **New Query**
-5. Open `migrations/001_create_tables.sql` in this repository
-6. Copy the entire SQL script and paste it into the Supabase SQL Editor
-7. Click **Run** (or press Ctrl/Cmd + Enter)
-8. Verify tables were created by going to **Table Editor** - you should see `articles`, `events`, and `scores` tables
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-### 4. Run the Agent
+## 📝 License
 
-### Fetch News
-```bash
-# Fetch Tesla news from all sources (past 7 days)
-python -m app.cli.fetch_news --days 7
-```
+MIT License - See [LICENSE](LICENSE) file for details
 
-### Generate Report
-```bash
-# Generate weekly sentiment report
-python -m app.cli.generate_report
-```
+## 🙏 Acknowledgments
 
-### Run Full Pipeline
-```bash
-# Complete analysis pipeline
-python -m app.cli.run_once TSLA --window-hours 12 --max-docs 10
-```
+- [Browser-Use](https://github.com/browser-use/browser-use) for the amazing browser automation framework
+- OpenAI for GPT-4o
+- Supabase for the database platform
 
-### 5. Verify Results
+## 📧 Contact
 
-- Check the terminal output for a formatted table with analysis results
-- Go to your Supabase **Table Editor** to view stored data in the database
-
-## Testing
-
-Run all tests:
-```bash
-pytest
-```
-
-Run Supabase integration tests:
-```bash
-pytest tests/test_supabase_integration.py -v
-```
-
-## Troubleshooting
-
-### Browser-Use Issues
-
-**Problem**: Browser fails to launch  
-**Solution**: Ensure Chrome is installed. On macOS it should be at `/Applications/Google Chrome.app`. On other systems, update the path in `app/adapters/browser_client.py`
-
-**Problem**: Bot detection or CAPTCHA  
-**Solution**: The agent uses stealth mode but may still encounter challenges. This is expected and the system will fall back to stub data.
-
-### Supabase Issues
-
-**Problem**: "Could not find table" error  
-**Solution**: Run the migration script `migrations/001_create_tables.sql` in Supabase SQL Editor
-
-**Problem**: Permission denied  
-**Solution**: Use the **service role key** from Settings → API, not the anon/public key
-
-**Problem**: Connection timeout  
-**Solution**: Check internet connection. Free tier projects pause after inactivity - visit your dashboard to wake it up.
-
-## What's Next
-
-This framework is ready for enhancement with:
-- Real LLM-based sentiment analysis (currently using placeholder logic)
-- Alpha Vantage API integration for structured news feeds
-- Advanced scoring algorithms with market correlation
-- Multi-ticker support
-- Web dashboard for visualization
-- Scheduled/automated runs
-
-See `docs/AI_Powered_Stock_Sentiment_Design_Doc.md` for the complete system design.
-
-## Support
-
-For questions or issues, contact the development team.
+For questions or support, please open an issue on GitHub.
 
 ---
 
-**Built with**: Browser-Use • OpenAI • Supabase • Python 3.11
+**⚠️ Disclaimer**: This tool is for educational and research purposes. Always comply with Twitter/Reddit's Terms of Service and rate limits. Not financial advice.

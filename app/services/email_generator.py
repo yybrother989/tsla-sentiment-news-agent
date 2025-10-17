@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from app.domain.schemas import SentimentAnalysisRecord
+from app.domain.schemas import SentimentAnalysisRecord, RedditSentimentRecord
 from app.infra import get_logger, get_settings
 
 
@@ -19,6 +19,7 @@ class EmailContent(BaseModel):
     market_outlook: str = Field(description="Overall market sentiment and outlook paragraph")
     key_takeaways: List[str] = Field(description="3-5 bullet point key takeaways")
     action_items: List[str] = Field(description="2-3 suggested action items or insights")
+    reddit_section: str = Field(description="Summary of top Reddit posts (if any)")
 
 
 class EmailContentGenerator:
@@ -36,6 +37,7 @@ class EmailContentGenerator:
     async def generate_email_content(
         self,
         records: List[SentimentAnalysisRecord],
+        reddit_posts: List[RedditSentimentRecord] = None,
         time_period: str = "24 hours"
     ) -> EmailContent:
         """Generate dynamic email content using LLM."""
@@ -77,6 +79,18 @@ class EmailContentGenerator:
                 f"   Summary: {record.summary or 'N/A'}\n"
             )
         
+        # Prepare Reddit posts for LLM (if any)
+        reddit_summaries = []
+        if reddit_posts:
+            for i, post in enumerate(reddit_posts[:5], 1):  # Top 5 Reddit posts
+                reddit_summaries.append(
+                    f"{i}. {post.title}\n"
+                    f"   Author: u/{post.author_username or 'Unknown'} | "
+                    f"Upvotes: {post.upvote_count or 0} | "
+                    f"Comments: {post.comment_count or 0}\n"
+                    f"   Posted: {post.posted_at.strftime('%Y-%m-%d %H:%M') if post.posted_at else 'Unknown'}\n"
+                )
+        
         # Create comprehensive prompt for LLM
         system_prompt = """You are a senior financial analyst writing a daily Tesla news briefing email for investors and executives.
 
@@ -106,6 +120,9 @@ Focus on what matters most to Tesla investors and stakeholders."""
 **HIGH-IMPACT NEWS:**
 {"".join(high_impact_summaries) if high_impact_summaries else "None"}
 
+**REDDIT COMMUNITY BUZZ (Top Posts from Past Week by Upvotes):**
+{"".join(reddit_summaries) if reddit_summaries else "No recent Reddit posts available"}
+
 Generate:
 1. **subject**: Catchy, informative subject line (60 chars max)
 2. **executive_summary**: 2-3 paragraph executive summary covering:
@@ -115,6 +132,7 @@ Generate:
 3. **market_outlook**: One paragraph on the overall market outlook and sentiment direction
 4. **key_takeaways**: 3-5 bullet points of the most important insights
 5. **action_items**: 2-3 specific, actionable recommendations or insights for investors
+6. **reddit_section**: Brief summary of what the Reddit community is discussing about Tesla (top posts from past week, if available)
 
 Make it dynamic, context-aware, and tailored to the specific news of this period."""
 

@@ -8,7 +8,7 @@ from typing import List
 
 from jinja2 import Environment, FileSystemLoader
 
-from app.domain.schemas import SentimentAnalysisRecord
+from app.domain.schemas import SentimentAnalysisRecord, RedditSentimentRecord
 from app.infra import get_logger, get_settings
 from app.services.email_generator import EmailContent, EmailContentGenerator
 
@@ -53,6 +53,7 @@ class EmailService:
         self,
         records: List[SentimentAnalysisRecord],
         recipient_email: str,
+        reddit_posts: List[RedditSentimentRecord] = None,
         time_period: str = "24 hours",
         report_url: str = ""
     ) -> bool:
@@ -63,7 +64,7 @@ class EmailService:
             # Generate LLM-powered content
             content_generator = EmailContentGenerator()
             llm_content: EmailContent = await content_generator.generate_email_content(
-                records, time_period
+                records, reddit_posts, time_period
             )
             
             # Calculate statistics
@@ -83,12 +84,20 @@ class EmailService:
             executive_summary_html = llm_content.executive_summary.replace('\n\n', '</p><p>').replace('\n', '<br>')
             market_outlook_html = llm_content.market_outlook.replace('\n', '<br>')
             
+            # Convert Reddit section to HTML
+            reddit_section_html = llm_content.reddit_section.replace('\n', '<br>') if llm_content.reddit_section else ""
+            
+            # Get top 3 Reddit posts for direct display
+            top_reddit_posts = reddit_posts[:3] if reddit_posts else []
+            
             html_content = template.render(
                 subject=llm_content.subject,
                 report_date=Path(__file__).parent.parent.parent.name,
                 time_period=time_period,
                 executive_summary=f"<p>{executive_summary_html}</p>",
                 market_outlook=market_outlook_html,
+                reddit_section=reddit_section_html,
+                top_reddit_posts=top_reddit_posts,
                 key_takeaways=llm_content.key_takeaways,
                 action_items=llm_content.action_items,
                 top_articles=top_articles,

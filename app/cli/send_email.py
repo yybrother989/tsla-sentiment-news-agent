@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from app.domain.schemas import SentimentAnalysisRecord
+from app.domain.schemas import SentimentAnalysisRecord, RedditSentimentRecord
 from app.infra import get_logger, get_settings, setup_logging
 from app.services.email_service import EmailService
 
@@ -70,7 +70,29 @@ def send(
                 return
             
             records = [SentimentAnalysisRecord(**row) for row in response.data]
-            console.print(f"[green]✓ Retrieved {len(records)} articles[/green]\n")
+            console.print(f"[green]✓ Retrieved {len(records)} articles[/green]")
+            
+            # Fetch Reddit posts from database (top posts from past week by upvotes)
+            console.print(f"[cyan]→ Fetching top Reddit posts from past week...[/cyan]")
+            from datetime import timezone as tz
+            end_date_utc = datetime.now(tz.utc)
+            reddit_start = end_date_utc - timedelta(days=7)  # Always fetch from past week
+            reddit_response = adapter.client.table('reddit_sentiment').select('*').gte(
+                'collected_at', reddit_start.isoformat()
+            ).lte(
+                'collected_at', end_date_utc.isoformat()
+            ).eq(
+                'user_id', settings.user_id
+            ).order('upvote_count', desc=True).limit(10).execute()
+            
+            reddit_posts = [RedditSentimentRecord(**row) for row in reddit_response.data] if reddit_response.data else []
+            if reddit_posts:
+                console.print(f"[green]✓ Retrieved {len(reddit_posts)} top Reddit posts (sorted by upvotes)[/green]")
+            else:
+                console.print(f"[yellow]⚠ No Reddit posts found in the past week.[/yellow]")
+                console.print(f"[yellow]Run: python -m app.cli.reddit_sentiment reddit-sentiment[/yellow]")
+            
+            console.print()
             
             # Calculate statistics for display
             bullish = sum(1 for r in records if r.stance == 'bullish')
@@ -96,7 +118,7 @@ def send(
                 # Generate preview HTML
                 from app.services.email_generator import EmailContentGenerator
                 content_gen = EmailContentGenerator()
-                llm_content = await content_gen.generate_email_content(records, time_period)
+                llm_content = await content_gen.generate_email_content(records, reddit_posts, time_period)
                 
                 # Save preview
                 preview_dir = Path("email_previews")
@@ -149,6 +171,7 @@ ACTION ITEMS:
                     success = await email_service.send_email_notification(
                         records=records,
                         recipient_email=email,
+                        reddit_posts=reddit_posts,
                         time_period=time_period,
                         report_url=""
                     )

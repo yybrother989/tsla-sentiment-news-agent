@@ -194,6 +194,252 @@ EventRecord = SentimentAnalysisRecord
 ScoreRecord = SentimentAnalysisRecord
 
 
+class TwitterTweet(BaseModel):
+    """Normalized tweet payload returned by the Twitter adapter."""
+
+    tweet_id: str
+    tweet_url: HttpUrl
+    conversation_id: str | None = None
+
+    author_id: str | None = None
+    author_handle: str | None = None
+    author_name: str | None = None
+    author_username: str | None = None
+
+    text: str
+    language: str | None = None
+    hashtags: List[str] = Field(default_factory=list)
+    mentions: List[str] = Field(default_factory=list)
+
+    like_count: int | None = None
+    reply_count: int | None = None
+    retweet_count: int | None = None
+    quote_count: int | None = None
+    bookmark_count: int | None = None
+    view_count: int | None = None
+
+    posted_at: datetime
+    collected_at: datetime
+
+    raw_payload: Dict[str, Any] | None = None
+
+    def to_collector_document(self) -> CollectorDocument:
+        return CollectorDocument(
+            url=self.tweet_url,
+            title=f"Tweet by {self.author_handle or self.author_name or 'unknown'}",
+            text=self.text,
+            source="twitter",
+            published_at=self.posted_at,
+        )
+
+
+class TwitterSentimentRecord(SupabaseRecord):
+    """Database record for high-engagement Twitter sentiment analysis."""
+
+    ticker: str
+    tweet_id: str
+    tweet_url: str
+    conversation_id: str | None = None
+
+    author_id: str | None = None
+    author_handle: str | None = None
+    author_name: str | None = None
+    author_username: str | None = None
+
+    text: str
+    language: str | None = None
+    hashtags: str | None = None
+    mentions: str | None = None
+
+    like_count: int | None = None
+    reply_count: int | None = None
+    retweet_count: int | None = None
+    quote_count: int | None = None
+    bookmark_count: int | None = None
+    view_count: int | None = None
+
+    posted_at: datetime
+    collected_at: datetime | None = None
+
+    sentiment_score: float | None = Field(default=None, ge=-1.0, le=1.0)
+    sentiment_label: str | None = None
+    sentiment_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    sentiment_rationale: str | None = None
+    key_themes: str | None = None
+    sentiment_index: float | None = None
+    notes: str | None = None
+
+    raw_payload: Dict[str, Any] | None = None
+
+    @classmethod
+    def from_tweet(
+        cls,
+        *,
+        tweet: TwitterTweet,
+        ticker: str,
+        sentiment_score: float | None = None,
+        sentiment_label: str | None = None,
+        sentiment_confidence: float | None = None,
+        sentiment_rationale: str | None = None,
+        key_themes: List[str] | None = None,
+        sentiment_index: float | None = None,
+        notes: str | None = None,
+        user_id: int = 1,
+    ) -> "TwitterSentimentRecord":
+        return cls(
+            ticker=ticker,
+            user_id=user_id,
+            tweet_id=tweet.tweet_id,
+            tweet_url=str(tweet.tweet_url),
+            conversation_id=tweet.conversation_id,
+            author_id=tweet.author_id,
+            author_handle=tweet.author_handle,
+            author_name=tweet.author_name,
+            author_username=tweet.author_username,
+            text=tweet.text,
+            language=tweet.language,
+            hashtags=", ".join(tweet.hashtags) if tweet.hashtags else None,
+            mentions=", ".join(tweet.mentions) if tweet.mentions else None,
+            like_count=tweet.like_count,
+            reply_count=tweet.reply_count,
+            retweet_count=tweet.retweet_count,
+            quote_count=tweet.quote_count,
+            bookmark_count=tweet.bookmark_count,
+            view_count=tweet.view_count,
+            posted_at=tweet.posted_at,
+            collected_at=tweet.collected_at,
+            sentiment_score=sentiment_score,
+            sentiment_label=sentiment_label,
+            sentiment_confidence=sentiment_confidence,
+            sentiment_rationale=sentiment_rationale,
+            key_themes=", ".join(key_themes) if key_themes else None,
+            sentiment_index=sentiment_index,
+            notes=notes,
+            raw_payload=tweet.raw_payload,
+        )
+
+
+class RedditPost(BaseModel):
+    """Normalized Reddit post payload returned by the Reddit adapter."""
+
+    post_id: str
+    post_url: HttpUrl
+    subreddit: str = "wallstreetbets"
+    
+    author_username: str | None = None
+    title: str
+    text: str | None = None
+    flair: str | None = None
+    
+    upvote_count: int | None = None
+    upvote_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    comment_count: int | None = None
+    award_count: int | None = None
+    
+    is_pinned: bool = False
+    is_locked: bool = False
+    is_archived: bool = False
+    
+    posted_at: datetime
+    collected_at: datetime
+    raw_payload: Dict[str, Any] | None = None
+
+    def to_collector_document(self) -> CollectorDocument:
+        """Convert to CollectorDocument for sentiment analysis."""
+        combined_text = self.title
+        if self.text:
+            combined_text += f"\n\n{self.text}"
+        
+        return CollectorDocument(
+            url=self.post_url,
+            title=self.title,
+            text=combined_text,
+            source="reddit",
+            published_at=self.posted_at,
+        )
+
+
+class RedditSentimentRecord(SupabaseRecord):
+    """Database record for high-engagement Reddit sentiment analysis."""
+    
+    ticker: str
+    post_id: str
+    post_url: str
+    subreddit: str = "wallstreetbets"
+    
+    author_username: str | None = None
+    title: str
+    text: str | None = None
+    flair: str | None = None
+    
+    upvote_count: int | None = None
+    upvote_ratio: float | None = Field(default=None, ge=0.0, le=1.0)
+    comment_count: int | None = None
+    award_count: int | None = None
+    
+    is_pinned: bool = False
+    is_locked: bool = False
+    is_archived: bool = False
+    
+    posted_at: datetime
+    collected_at: datetime | None = None
+    
+    sentiment_score: float | None = Field(default=None, ge=-1.0, le=1.0)
+    sentiment_label: str | None = None
+    sentiment_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    sentiment_rationale: str | None = None
+    key_themes: str | None = None
+    sentiment_index: float | None = None
+    
+    notes: str | None = None
+    raw_payload: Dict[str, Any] | None = None
+
+    @classmethod
+    def from_post(
+        cls,
+        *,
+        post: RedditPost,
+        ticker: str,
+        sentiment_score: float | None = None,
+        sentiment_label: str | None = None,
+        sentiment_confidence: float | None = None,
+        sentiment_rationale: str | None = None,
+        key_themes: List[str] | None = None,
+        sentiment_index: float | None = None,
+        notes: str | None = None,
+        user_id: int = 1,
+    ) -> "RedditSentimentRecord":
+        """Create a RedditSentimentRecord from a RedditPost and sentiment data."""
+        return cls(
+            ticker=ticker,
+            user_id=user_id,
+            post_id=post.post_id,
+            post_url=str(post.post_url),
+            subreddit=post.subreddit,
+            author_username=post.author_username,
+            title=post.title,
+            text=post.text,
+            flair=post.flair,
+            upvote_count=post.upvote_count,
+            upvote_ratio=post.upvote_ratio,
+            comment_count=post.comment_count,
+            award_count=post.award_count,
+            is_pinned=post.is_pinned,
+            is_locked=post.is_locked,
+            is_archived=post.is_archived,
+            posted_at=post.posted_at,
+            collected_at=post.collected_at,
+            sentiment_score=sentiment_score,
+            sentiment_label=sentiment_label,
+            sentiment_confidence=sentiment_confidence,
+            sentiment_rationale=sentiment_rationale,
+            key_themes=", ".join(key_themes) if key_themes else None,
+            sentiment_index=sentiment_index,
+            notes=notes,
+            raw_payload=post.raw_payload,
+        )
+
+
 class LLMError(BaseModel):
     message: str
     payload: Optional[Dict[str, str]] = None
@@ -216,11 +462,15 @@ __all__ = [
     "ReasoningRequest",
     "ReasoningResponse",
     "ReasoningResult",
+    "RedditPost",
+    "RedditSentimentRecord",
     "Score",
     "ScoreRecord",
     "ScoringRequest",
     "ScoringResponse",
     "SentimentAnalysisRecord",
     "SupabaseRecord",
+    "TwitterTweet",
+    "TwitterSentimentRecord",
     "canonical_hash",
 ]

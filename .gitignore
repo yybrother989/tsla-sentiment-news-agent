@@ -19,17 +19,13 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual Environment
 .venv/
 venv/
 ENV/
 env/
-
-# Environment Variables
-.env
-.env.local
-.env.*.local
 
 # IDE
 .vscode/
@@ -39,53 +35,63 @@ env/
 *~
 .DS_Store
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.hypothesis/
+# Environment Variables
+.env
+.env.local
+.env.*.local
 
-# Browser-Use
-browseruse_agent_data/
-extracted_content_*.md
-results.md
-/tmp/browser-use-downloads-*/
-
-# Generated Reports and Outputs
-reports/
-!reports/.gitkeep
-email_previews/
-!email_previews/.gitkeep
-
-# Logs
+# Cache & Session Data
+cache/
+*.json.bak
 *.log
-logs/
 
-# Temporary files
-*.tmp
-*.temp
+# Email Previews
+email_previews/
 
-# Data files (should not be committed)
-data/
-*.csv
-*.json
+# Reports
+reports/*.html
+reports/*.pdf
+reports/*.md
+!reports/.gitkeep
+
+# Test Files
+test_*.py
+*_test.py
+pytest_cache/
+.pytest_cache/
+
+# Database
 *.db
 *.sqlite
 *.sqlite3
 
-# Jupyter Notebooks checkpoints
-.ipynb_checkpoints/
+# Browser-Use Generated Files
+extracted_content_*.md
+results.json
+results.md
+final_output.json
+
+# Temporary Files
+*.tmp
+*.temp
+.cache/
+
+# Coverage
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter Notebook
+.ipynb_checkpoints
 
 # macOS
 .DS_Store
 .AppleDouble
 .LSOverride
-
-# Secrets and credentials
-secrets/
-credentials/
-*.pem
-*.key
-*.crt
-
+.browser-use-reference/

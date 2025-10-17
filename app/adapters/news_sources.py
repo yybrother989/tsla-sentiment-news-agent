@@ -69,21 +69,58 @@ STEPS:
 5. Wait 1 second for dropdown to fully open
 6. Click on "{time_filter}" option from the dropdown menu
 7. Wait 2 seconds for time filter to apply
-8. Use extract action with query: "Extract first 15 Tesla news articles with complete information"
+8. Use evaluate action to extract article URLs directly from DOM:
+   ```javascript
+   () => {{
+     const articles = [];
+     const results = document.querySelectorAll('article, .result');
+     results.forEach((result, i) => {{
+       if (i < 15) {{
+         const link = result.querySelector('a[href*="http"]');
+         const titleEl = result.querySelector('h2, h3, .result__title');
+         const timeEl = result.querySelector('time, .result__timestamp');
+         const snippetEl = result.querySelector('.result__snippet, p');
+         
+         if (link && titleEl) {{
+           let url = link.getAttribute('href');
+           // DuckDuckGo sometimes uses uddg= parameter with encoded URL
+           if (url && url.includes('uddg=')) {{
+             const match = url.match(/uddg=([^&]+)/);
+             if (match) {{
+               url = decodeURIComponent(match[1]);
+             }}
+           }}
+           
+           if (url && url.startsWith('http')) {{
+             articles.push({{
+               title: titleEl.textContent.trim(),
+               url: url,
+               date_text: timeEl?.textContent?.trim() || 'recent',
+               summary: snippetEl?.textContent?.trim() || titleEl.textContent.trim()
+             }});
+           }}
+         }}
+       }}
+     }});
+     return JSON.stringify(articles);
+   }}
+   ```
+9. If JavaScript extraction returns valid results, use those. Otherwise fall back to extract action.
 
 CRITICAL EXTRACTION REQUIREMENTS:
-- ONLY extract articles that have a COMPLETE https:// URL
-- Skip any articles with missing or incomplete URLs
+- Use JavaScript evaluate to extract href attributes directly from DOM
+- Parse DuckDuckGo's uddg= parameter to get real URLs
+- ONLY include articles with valid http/https URLs
+- Skip any DuckDuckGo redirect URLs
 - For each valid article, extract:
   * title: article headline (required)
-  * url: FULL article URL starting with https:// (required - skip article if missing)
-  * date_text: publication date like "7 hours ago" or "Oct 14, 2025" (use "recent" if not visible)
-  * summary: article excerpt or first sentence (use title if not available)
+  * url: Direct article URL (required - must start with http)
+  * date_text: publication date like "7 hours ago" or "recent"
+  * summary: article excerpt or title
 
 IMPORTANT:
 - Extract at least 15 articles to account for some having invalid URLs
-- Verify each URL starts with "http" before including it
-- Skip placeholder articles, ads, or items without real URLs
+- The URL must be the ACTUAL destination URL, not a DuckDuckGo redirect
 - Focus on articles from past {days} days
 - Prefer credible news sources"""
 
@@ -247,6 +284,9 @@ async def fetch_tesla_news(days: int = 7) -> List[CollectorDocument]:
     Fetch Tesla news articles from DuckDuckGo for the specified time window.
     
     This is the main entry point for news collection.
+    
+    Note: Some article URLs may redirect to homepage due to paywall, article removal,
+    or geo-restrictions. This is expected behavior from news sites.
     """
     source = DuckDuckGoNewsSource()
     return await source.fetch_all_tesla_news(days)

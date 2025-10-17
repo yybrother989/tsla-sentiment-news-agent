@@ -8,7 +8,7 @@ from typing import List
 
 from jinja2 import Environment, FileSystemLoader
 
-from app.domain.schemas import SentimentAnalysisRecord
+from app.domain.schemas import SentimentAnalysisRecord, RedditSentimentRecord
 from app.infra import get_logger
 
 
