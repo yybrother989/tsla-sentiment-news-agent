@@ -21,6 +21,7 @@ class RedditCollectionError(RuntimeError):
 class ExtractedPost(BaseModel):
     post_id: str
     post_url: str
+    subreddit_name: str = Field(description="Subreddit name (e.g., 'wallstreetbets')")
     author_username: str | None = None
     title: str
     text: str | None = None
@@ -189,41 +190,56 @@ STEP 1: Navigate to Filtered Search Results
 - Wait 10 seconds for page load
 {login_block}
 
-STEP 2: Verify Filters (Quick Check)
+STEP 2: Check "Limit Search to Subreddit" Box
+- Look for the checkbox labeled "limit my search to r/{subreddit}"
+- If the checkbox is NOT checked, click it to check it
+- This ensures search results are ONLY from r/{subreddit}
+- Wait 2 seconds for the page to update
+
+STEP 3: Verify Filters (Quick Check)
 - Look for "sorted by: {sort_by}" dropdown
 - Look for "links from: {time_filter}" dropdown
 - If you see these, filters are applied correctly
 - Verify posts have recent timestamps (hours/days ago, not years)
 
-STEP 3: Extract Posts AND Call Done Immediately
-- Use the extract action with this exact query:
-  "Extract first {target} Reddit posts mentioning TSLA or Tesla with complete information"
+STEP 4: Scroll Down to Load Posts First
+- Scroll down one page to ensure posts are fully loaded
+- Wait 2 seconds for posts to render
+
+STEP 5: Extract Posts AND Call Done Immediately
+- Use the extract action with this EXACT query:
+  "Extract first {target} Reddit posts ONLY from r/{subreddit} subreddit mentioning TSLA or Tesla. SKIP posts from any other subreddit like r/stocks, r/technology, r/options, etc."
+  
 - For each post, you MUST extract:
   * title: post headline (required)
   * post_url: FULL Reddit URL (required - skip post if missing)
-    Example: https://old.reddit.com/r/wallstreetbets/comments/1o5orwk/last_year_been_good/
+    Example: https://old.reddit.com/r/{subreddit}/comments/1o5orwk/last_year_been_good/
   * author_username: Reddit username
   * upvote_count: number of upvotes
   * comment_count: number of comments
   * timestamp: when posted (e.g., "2 hours ago", "1 day ago")
   * text: post content or description
   * flair: post flair if visible
+  * subreddit_name: MUST be "{subreddit}" exactly - skip if different
 
 - IMMEDIATELY after extraction, call the done action with ALL {target} posts
 
-CRITICAL EXTRACTION REQUIREMENTS:
-- ONLY extract posts FROM r/{subreddit} - ignore posts from other subreddits
-- ONLY extract posts that have a COMPLETE https://old.reddit.com URL
-- URL MUST start with: https://old.reddit.com/r/{subreddit}/comments/
-- Real example: https://old.reddit.com/r/{subreddit}/comments/1o5orwk/last_year_been_good/
-- Skip posts from r/technology, r/options, r/changemyview, or any other subreddit
-- Skip any posts with missing, incomplete, or fake URLs
-- DO NOT use placeholder IDs like "xyz123", "abc456", "1", "2", etc.
-- Extract at least {target} posts to account for some having invalid URLs
+CRITICAL EXTRACTION REQUIREMENTS (READ CAREFULLY):
+- **SUBREDDIT VALIDATION**: Before extracting a post, CHECK that it's from r/{subreddit}
+  * Look for "r/{subreddit}" in the post's subreddit name
+  * URL MUST start with: https://old.reddit.com/r/{subreddit}/comments/
+  * If you see r/stocks, r/technology, r/options, or ANY other subreddit → SKIP IT
+- **URL VALIDATION**: ONLY extract posts with COMPLETE https://old.reddit.com URLs
+  * Real example: https://old.reddit.com/r/{subreddit}/comments/1o5orwk/last_year_been_good/
+  * Skip posts with missing, incomplete, or fake URLs
+  * DO NOT use placeholder IDs like "xyz123", "abc456", "1", "2", etc.
+- **QUALITY OVER QUANTITY**: Extract {target} VALID posts from r/{subreddit} only
+  * You may need to look at more posts to find {target} valid ones from r/{subreddit}
+  * Better to extract fewer valid posts than include posts from wrong subreddits
 - Focus on posts from the past week (filters already applied)
 - DO NOT write files - extract and call done immediately
 
-STEP 4: Get More if Needed
+STEP 6: Get More if Needed
 - If you have < {target} posts:
   * Scroll down
   * Wait 3 seconds
@@ -325,6 +341,17 @@ Extract {target} posts mentioning TSLA or Tesla from r/{subreddit}.
                         self.logger.warning("Skipping post %s: invalid/fake URL '%s'", post.post_id, post.post_url)
                         continue
                     
+                    # Validate subreddit_name field matches our target
+                    if hasattr(post, 'subreddit_name') and post.subreddit_name:
+                        if post.subreddit_name.lower() != self.config.subreddit.lower():
+                            self.logger.warning(
+                                "Skipping post %s: from r/%s (expected r/%s) based on subreddit_name field", 
+                                post.post_id, 
+                                post.subreddit_name,
+                                self.config.subreddit
+                            )
+                            continue
+                    
                     # Extract subreddit from URL and validate it matches our target subreddit
                     # URL format: https://old.reddit.com/r/SUBREDDIT/comments/...
                     url_parts = post.post_url.split('/')
@@ -332,7 +359,7 @@ Extract {target} posts mentioning TSLA or Tesla from r/{subreddit}.
                         actual_subreddit = url_parts[4].lower()
                         if actual_subreddit != self.config.subreddit.lower():
                             self.logger.warning(
-                                "Skipping post %s: from r/%s (expected r/%s)", 
+                                "Skipping post %s: from r/%s (expected r/%s) based on URL", 
                                 post.post_id, 
                                 actual_subreddit,
                                 self.config.subreddit
