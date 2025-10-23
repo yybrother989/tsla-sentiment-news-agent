@@ -178,6 +178,34 @@
                     </tr>
                     {% endif %}
                     
+                    <!-- Twitter Sentiment -->
+                    {% if top_twitter_posts %}
+                    <tr>
+                        <td style="padding: 0 30px 30px 30px;">
+                            <h2 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 20px; border-bottom: 2px solid #1da1f2; padding-bottom: 10px;">
+                                🐦 Top Twitter Posts (This Week)
+                            </h2>
+                            {% for tweet in top_twitter_posts %}
+                            <div style="background: #f0f8ff; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid #1da1f2;">
+                                <div style="margin-bottom: 10px;">
+                                    <a href="{{ tweet.tweet_url }}" style="color: #1da1f2; text-decoration: none; font-size: 16px; font-weight: bold;">
+                                        {{ loop.index }}. @{{ tweet.author_handle or 'Unknown' }}
+                                    </a>
+                                </div>
+                                <div style="color: #666; font-size: 14px; margin-bottom: 8px;">
+                                    <span style="margin-right: 15px;">❤️ {{ tweet.like_count or 0 }} likes</span>
+                                    <span style="margin-right: 15px;">🔄 {{ tweet.retweet_count or 0 }} retweets</span>
+                                    <span>💬 {{ tweet.reply_count or 0 }} replies</span>
+                                </div>
+                                <div style="color: #555; line-height: 1.5; font-size: 14px; margin-top: 10px;">
+                                    {{ tweet.text[:200] }}{% if tweet.text|length > 200 %}...{% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    
                     <!-- Action Items -->
                     <tr>
                         <td style="padding: 0 30px 30px 30px;">

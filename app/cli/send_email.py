@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from app.domain.schemas import SentimentAnalysisRecord, RedditSentimentRecord
+from app.domain.schemas import SentimentAnalysisRecord, RedditSentimentRecord, TwitterSentimentRecord
 from app.infra import get_logger, get_settings, setup_logging
 from app.services.email_service import EmailService
 
@@ -92,6 +92,23 @@ def send(
                 console.print(f"[yellow]⚠ No Reddit posts found in the past week.[/yellow]")
                 console.print(f"[yellow]Run: python -m app.cli.reddit_sentiment reddit-sentiment[/yellow]")
             
+            # Fetch Twitter posts from database (top posts from past week by engagement)
+            console.print(f"[cyan]→ Fetching top Twitter posts from past week...[/cyan]")
+            twitter_response = adapter.client.table('twitter_sentiment').select('*').gte(
+                'collected_at', reddit_start.isoformat()
+            ).lte(
+                'collected_at', end_date_utc.isoformat()
+            ).eq(
+                'user_id', settings.user_id
+            ).order('like_count', desc=True).limit(10).execute()
+            
+            twitter_posts = [TwitterSentimentRecord(**row) for row in twitter_response.data] if twitter_response.data else []
+            if twitter_posts:
+                console.print(f"[green]✓ Retrieved {len(twitter_posts)} top Twitter posts (sorted by likes)[/green]")
+            else:
+                console.print(f"[yellow]⚠ No Twitter posts found in the past week.[/yellow]")
+                console.print(f"[yellow]Run: python -m app.cli.twitter_sentiment twitter-sentiment[/yellow]")
+            
             console.print()
             
             # Calculate statistics for display
@@ -118,7 +135,7 @@ def send(
                 # Generate preview HTML
                 from app.services.email_generator import EmailContentGenerator
                 content_gen = EmailContentGenerator()
-                llm_content = await content_gen.generate_email_content(records, reddit_posts, time_period)
+                llm_content = await content_gen.generate_email_content(records, reddit_posts, twitter_posts, time_period)
                 
                 # Save preview
                 preview_dir = Path("email_previews")
@@ -172,6 +189,7 @@ ACTION ITEMS:
                         records=records,
                         recipient_email=email,
                         reddit_posts=reddit_posts,
+                        twitter_posts=twitter_posts,
                         time_period=time_period,
                         report_url=""
                     )

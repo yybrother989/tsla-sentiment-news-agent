@@ -11,9 +11,13 @@ from rich.console import Console
 from rich.table import Table
 
 from app.adapters.twitter_source import (
-    TwitterCollectionError,
+    TwitterCollectionError as BrowserCollectionError,
     TwitterSearchConfig,
-    fetch_tweets,
+)
+from app.adapters.twitter_source import fetch_tweets as fetch_tweets_browser
+from app.adapters.n8n_twitter_source import (
+    N8nCollectionError,
+    fetch_tweets as fetch_tweets_n8n,
 )
 from app.domain.schemas import TwitterSentimentRecord, TwitterTweet
 from app.infra import get_logger, get_settings, setup_logging
@@ -427,9 +431,10 @@ def twitter_sentiment(
     scrolls: int = typer.Option(8, help="Maximum scroll attempts"),
     save_markdown: bool = typer.Option(True, help="Persist Markdown report to reports/"),
     clear_cache: bool = typer.Option(False, help="Clear cached Twitter session and re-authenticate"),
-    check_cache: bool = typer.Option(False, help="Check cache status and exit")
+    check_cache: bool = typer.Option(False, help="Check cache status and exit"),
+    use_browser: bool = typer.Option(False, help="Use browser-use instead of n8n+Apify (legacy mode)")
 ) -> None:
-    """Collect high-engagement Tesla tweets and analyze sentiment (uses Browser-Use with cached cookies)."""
+    """Collect high-engagement Tesla tweets and analyze sentiment (default: n8n+Apify, or --use-browser for legacy mode)."""
 
     settings = get_settings()
     setup_logging(settings.log_level)
@@ -480,30 +485,53 @@ def twitter_sentiment(
             max_scrolls=scrolls,
         )
 
-        # Check cache status and inform user
-        cache_file = Path("cache/twitter_session.json")
-        has_cache = cache_file.exists()
-        
-        if not has_cache:
-            console.print("\n[red]✗ No Twitter session found![/red]\n")
-            console.print("[yellow]First-time setup required (choose one method):[/yellow]\n")
-            console.print("[bold green]Method 1 - Simple Cookie Paste (RECOMMENDED):[/bold green]")
-            console.print("  • Run: [cyan]python -m app.cli.twitter_sentiment twitter-login-simple[/cyan]")
-            console.print("  • Export cookies from your browser")
-            console.print("  • Paste and done!\n")
-            console.print("[dim]Method 2 - Automated Browser (may have issues):[/dim]")
-            console.print("  • Run: [dim cyan]python -m app.cli.twitter_sentiment twitter-login[/dim]")
-            console.print("  • Log in manually, press Ctrl+C\n")
-            return
-        
-        console.print("\n[bold cyan]🔍 Collecting Tesla tweets via Browser-Use (using cached cookies)...[/bold cyan]\n")
-        
-        try:
-            with timed_span("twitter-collection"):
-                tweets = await fetch_tweets(config)
-        except TwitterCollectionError as exc:
-            console.print(f"[red]✗ Collection failed: {exc}[/red]")
-            return
+        # Choose collection method based on flag
+        if use_browser:
+            # Legacy browser-use method
+            cache_file = Path("cache/twitter_session.json")
+            has_cache = cache_file.exists()
+            
+            if not has_cache:
+                console.print("\n[red]✗ No Twitter session found![/red]\n")
+                console.print("[yellow]First-time setup required (choose one method):[/yellow]\n")
+                console.print("[bold green]Method 1 - Simple Cookie Paste (RECOMMENDED):[/bold green]")
+                console.print("  • Run: [cyan]python -m app.cli.twitter_sentiment twitter-login-simple[/cyan]")
+                console.print("  • Export cookies from your browser")
+                console.print("  • Paste and done!\n")
+                console.print("[dim]Method 2 - Automated Browser (may have issues):[/dim]")
+                console.print("  • Run: [dim cyan]python -m app.cli.twitter_sentiment twitter-login[/dim]")
+                console.print("  • Log in manually, press Ctrl+C\n")
+                return
+            
+            console.print("\n[bold cyan]🔍 Collecting Tesla tweets via Browser-Use (legacy mode)...[/bold cyan]\n")
+            
+            try:
+                with timed_span("twitter-collection"):
+                    tweets = await fetch_tweets_browser(config)
+            except BrowserCollectionError as exc:
+                console.print(f"[red]✗ Browser collection failed: {exc}[/red]")
+                return
+        else:
+            # Default n8n + Apify method
+            console.print("\n[bold cyan]🔍 Collecting Tesla tweets via n8n + Apify...[/bold cyan]\n")
+            
+            # Check n8n configuration
+            if not settings.n8n_base_url:
+                console.print("[red]✗ N8N_BASE_URL not configured[/red]\n")
+                console.print("[yellow]To use n8n integration:[/yellow]")
+                console.print("  1. Add N8N_BASE_URL to .env (e.g., https://bravecareer.app.n8n.cloud)")
+                console.print("  2. Set up n8n workflow with HTTP Request node")
+                console.print("  3. See docs/N8N_HTTP_REQUEST_SETUP.md for detailed guide\n")
+                console.print("[cyan]Or use legacy browser-use with --use-browser flag[/cyan]\n")
+                return
+            
+            try:
+                with timed_span("twitter-collection"):
+                    tweets = await fetch_tweets_n8n(config)
+            except N8nCollectionError as exc:
+                console.print(f"[red]✗ n8n collection failed: {exc}[/red]")
+                console.print("[yellow]💡 Try legacy browser-use with --use-browser flag[/yellow]\n")
+                return
 
         if not tweets:
             console.print("[yellow]No tweets fetched. Adjust the filters or login state.[/yellow]")

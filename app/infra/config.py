@@ -44,6 +44,12 @@ class AppSettings(BaseSettings):
     twitter_username: Optional[str] = Field(default=None, validation_alias="TWITTER_USERNAME")
     twitter_password: Optional[str] = Field(default=None, validation_alias="TWITTER_PASSWORD")
 
+    # n8n Integration (replaces browser-use for Twitter)
+    n8n_api_key: Optional[str] = Field(default=None, validation_alias="N8N_API_KEY")
+    n8n_base_url: Optional[str] = Field(default=None, validation_alias="N8N_BASE_URL")
+    n8n_twitter_workflow_id: Optional[str] = Field(default=None, validation_alias="N8N_TWITTER_WORKFLOW_ID")
+    n8n_timeout_seconds: int = Field(default=300, validation_alias="N8N_TIMEOUT_SECONDS")
+
     planner_timeout_minutes: int = Field(default=8)
     planner_max_documents: int = Field(default=60)
     planner_include_social: bool = Field(default=True)

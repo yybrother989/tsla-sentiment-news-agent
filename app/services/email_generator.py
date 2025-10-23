@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from app.domain.schemas import SentimentAnalysisRecord, RedditSentimentRecord
+from app.domain.schemas import SentimentAnalysisRecord, RedditSentimentRecord, TwitterSentimentRecord
 from app.infra import get_logger, get_settings
 
 
@@ -20,6 +20,7 @@ class EmailContent(BaseModel):
     key_takeaways: List[str] = Field(description="3-5 bullet point key takeaways")
     action_items: List[str] = Field(description="2-3 suggested action items or insights")
     reddit_section: str = Field(description="Summary of top Reddit posts (if any)")
+    twitter_section: str = Field(description="Summary of top Twitter posts (if any)")
 
 
 class EmailContentGenerator:
@@ -38,6 +39,7 @@ class EmailContentGenerator:
         self,
         records: List[SentimentAnalysisRecord],
         reddit_posts: List[RedditSentimentRecord] = None,
+        twitter_posts: List[TwitterSentimentRecord] = None,
         time_period: str = "24 hours"
     ) -> EmailContent:
         """Generate dynamic email content using LLM."""
@@ -91,6 +93,19 @@ class EmailContentGenerator:
                     f"   Posted: {post.posted_at.strftime('%Y-%m-%d %H:%M') if post.posted_at else 'Unknown'}\n"
                 )
         
+        # Prepare Twitter posts for LLM (if any)
+        twitter_summaries = []
+        if twitter_posts:
+            for i, tweet in enumerate(twitter_posts[:5], 1):  # Top 5 Twitter posts
+                twitter_summaries.append(
+                    f"{i}. {tweet.text[:100]}{'...' if len(tweet.text) > 100 else ''}\n"
+                    f"   Author: @{tweet.author_handle or 'Unknown'} | "
+                    f"Likes: {tweet.like_count or 0} | "
+                    f"Retweets: {tweet.retweet_count or 0} | "
+                    f"Replies: {tweet.reply_count or 0}\n"
+                    f"   Posted: {tweet.posted_at.strftime('%Y-%m-%d %H:%M') if tweet.posted_at else 'Unknown'}\n"
+                )
+        
         # Create comprehensive prompt for LLM
         system_prompt = """You are a senior financial analyst writing a daily Tesla news briefing email for investors and executives.
 
@@ -123,6 +138,9 @@ Focus on what matters most to Tesla investors and stakeholders."""
 **REDDIT COMMUNITY BUZZ (Top Posts from Past Week by Upvotes):**
 {"".join(reddit_summaries) if reddit_summaries else "No recent Reddit posts available"}
 
+**TWITTER SENTIMENT (Top Tweets by Engagement):**
+{"".join(twitter_summaries) if twitter_summaries else "No recent Twitter posts available"}
+
 Generate:
 1. **subject**: Catchy, informative subject line (60 chars max)
 2. **executive_summary**: 2-3 paragraph executive summary covering:
@@ -133,6 +151,7 @@ Generate:
 4. **key_takeaways**: 3-5 bullet points of the most important insights
 5. **action_items**: 2-3 specific, actionable recommendations or insights for investors
 6. **reddit_section**: Brief summary of what the Reddit community is discussing about Tesla (top posts from past week, if available)
+7. **twitter_section**: Brief summary of what Twitter users are saying about Tesla (top tweets by engagement, if available)
 
 Make it dynamic, context-aware, and tailored to the specific news of this period."""
 

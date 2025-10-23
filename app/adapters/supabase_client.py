@@ -33,7 +33,7 @@ class SupabaseAdapter:
         # Determine unique constraint column based on table
         conflict_column = {
             "sentiment_analysis": "url",
-            "twitter_sentiment": "url",
+            "twitter_sentiment": "tweet_id",  # Twitter uses tweet_id as unique constraint
             "reddit_sentiment": "post_url",  # Reddit uses post_url instead of url
         }.get(table, "url")  # Default to "url" for other tables
         

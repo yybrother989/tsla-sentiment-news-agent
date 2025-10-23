@@ -8,7 +8,7 @@ from typing import List
 
 from jinja2 import Environment, FileSystemLoader
 
-from app.domain.schemas import SentimentAnalysisRecord, RedditSentimentRecord
+from app.domain.schemas import SentimentAnalysisRecord, RedditSentimentRecord, TwitterSentimentRecord
 from app.infra import get_logger, get_settings
 from app.services.email_generator import EmailContent, EmailContentGenerator
 
@@ -54,6 +54,7 @@ class EmailService:
         records: List[SentimentAnalysisRecord],
         recipient_email: str,
         reddit_posts: List[RedditSentimentRecord] = None,
+        twitter_posts: List[TwitterSentimentRecord] = None,
         time_period: str = "24 hours",
         report_url: str = ""
     ) -> bool:
@@ -64,7 +65,7 @@ class EmailService:
             # Generate LLM-powered content
             content_generator = EmailContentGenerator()
             llm_content: EmailContent = await content_generator.generate_email_content(
-                records, reddit_posts, time_period
+                records, reddit_posts, twitter_posts, time_period
             )
             
             # Calculate statistics
@@ -87,8 +88,14 @@ class EmailService:
             # Convert Reddit section to HTML
             reddit_section_html = llm_content.reddit_section.replace('\n', '<br>') if llm_content.reddit_section else ""
             
+            # Convert Twitter section to HTML
+            twitter_section_html = llm_content.twitter_section.replace('\n', '<br>') if llm_content.twitter_section else ""
+            
             # Get top 3 Reddit posts for direct display
             top_reddit_posts = reddit_posts[:3] if reddit_posts else []
+            
+            # Get top 3 Twitter posts for direct display
+            top_twitter_posts = twitter_posts[:3] if twitter_posts else []
             
             html_content = template.render(
                 subject=llm_content.subject,
@@ -97,7 +104,9 @@ class EmailService:
                 executive_summary=f"<p>{executive_summary_html}</p>",
                 market_outlook=market_outlook_html,
                 reddit_section=reddit_section_html,
+                twitter_section=twitter_section_html,
                 top_reddit_posts=top_reddit_posts,
+                top_twitter_posts=top_twitter_posts,
                 key_takeaways=llm_content.key_takeaways,
                 action_items=llm_content.action_items,
                 top_articles=top_articles,
@@ -106,7 +115,7 @@ class EmailService:
             )
             
             # Create plain text version
-            plain_text = self._create_plain_text_email(llm_content, stats, top_articles)
+            plain_text = self._create_plain_text_email(llm_content, stats, top_articles, top_reddit_posts, top_twitter_posts)
             
             # Send email
             success = self._send_smtp_email(
@@ -131,7 +140,9 @@ class EmailService:
         self,
         content: EmailContent,
         stats: dict,
-        top_articles: List[SentimentAnalysisRecord]
+        top_articles: List[SentimentAnalysisRecord],
+        top_reddit_posts: List[RedditSentimentRecord] = None,
+        top_twitter_posts: List[TwitterSentimentRecord] = None
     ) -> str:
         """Create plain text version of email."""
         text_parts = [
@@ -181,6 +192,26 @@ class EmailService:
         
         for i, action in enumerate(content.action_items, 1):
             text_parts.append(f"{i}. {action}")
+        
+        # Add Reddit section if available
+        if top_reddit_posts and content.reddit_section:
+            text_parts.extend([
+                "",
+                "📱 REDDIT COMMUNITY BUZZ",
+                "-" * 60,
+                content.reddit_section,
+                ""
+            ])
+        
+        # Add Twitter section if available
+        if top_twitter_posts and content.twitter_section:
+            text_parts.extend([
+                "",
+                "🐦 TWITTER SENTIMENT",
+                "-" * 60,
+                content.twitter_section,
+                ""
+            ])
         
         text_parts.extend([
             "",

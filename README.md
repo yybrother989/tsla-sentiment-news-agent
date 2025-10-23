@@ -5,7 +5,7 @@ An AI-powered sentiment analysis system that monitors Tesla (TSLA) news, Twitter
 ## 🌟 Features
 
 - **📰 Automated News Collection**: Fetches Tesla news from DuckDuckGo with time-based filtering
-- **🐦 Twitter Monitoring**: Collects tweets about Tesla using Browser-Use AI agent (with authentication)
+- **🐦 Twitter Monitoring**: Collects tweets via n8n + Apify (or legacy Browser-Use with authentication)
 - **📊 Reddit Tracking**: Monitors r/wallstreetbets for top Tesla discussions
 - **🤖 AI-Powered Sentiment Analysis**: Uses GPT-4o to analyze sentiment and market impact
 - **📧 Smart Email Reports**: Generates professional HTML email summaries with AI insights
@@ -34,10 +34,13 @@ tests/                 # Unit and integration tests
 ### Prerequisites
 
 - Python 3.11+ (3.12 recommended)
-- Chrome browser installed
 - OpenAI API key
 - Supabase account (for database)
 - Gmail account (for sending emails)
+
+**For Twitter collection, choose one:**
+- **n8n + Apify** (recommended): n8n instance + Apify account
+- **Browser-Use** (legacy): Chrome browser installed
 
 ### Installation
 
@@ -94,14 +97,27 @@ python -m app.cli.fetch_news --days 1 --limit 10
 python -m app.cli.reddit_sentiment reddit-sentiment --subreddit wallstreetbets --target 5
 ```
 
-### 3. Collect Twitter/X Posts (Requires Login)
+### 3. Collect Twitter/X Posts
+
+**Option A: n8n + Apify (Recommended)**
+```bash
+# Configure n8n in .env (see docs/N8N_INTEGRATION.md)
+# N8N_API_KEY, N8N_BASE_URL, N8N_TWITTER_WORKFLOW_ID
+
+# Collect tweets via n8n workflow
+python -m app.cli.twitter_sentiment twitter-sentiment --target 10
+```
+
+**Option B: Browser-Use (Legacy)**
 ```bash
 # Step 1: Set up Twitter session (one-time)
 python -m app.cli.twitter_sentiment twitter-login-simple
 
-# Step 2: Collect tweets
-python -m app.cli.twitter_sentiment twitter-sentiment --query "TSLA OR Tesla" --target 10
+# Step 2: Collect tweets with browser automation
+python -m app.cli.twitter_sentiment twitter-sentiment --target 10 --use-browser
 ```
+
+See [N8N Integration Guide](docs/N8N_INTEGRATION.md) for setup details.
 
 ### 4. Send Email Report
 ```bash
@@ -123,10 +139,12 @@ python -m app.cli.send_email --days 1 --generate-only
 
 ## 🛠️ Key Technologies
 
-- **[Browser-Use](https://github.com/browser-use/browser-use)** - AI-powered browser automation with GPT-4o
+- **[n8n](https://n8n.io/)** - Workflow automation for Twitter data collection
+- **[Apify](https://apify.com/)** - Twitter scraper API
+- **[Browser-Use](https://github.com/browser-use/browser-use)** - AI-powered browser automation (legacy option)
 - **OpenAI GPT-4o** - LLM for sentiment analysis and content generation
 - **Supabase** - PostgreSQL database for data storage
-- **Playwright** - Browser automation runtime
+- **Playwright** - Browser automation runtime (for browser-use mode)
 - **Jinja2** - HTML email templating
 - **Typer** - CLI framework
 - **Pydantic** - Data validation and schemas
